@@ -1,0 +1,28 @@
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+h1 {
+  margin-top: 20px;
+}
+
+.pixel {
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  display: inline-block;
+}
+
+#buttons {
+  margin-bottom: 20px;
+}
+
+#board {
+  border: 1px solid #000000;
+  display: grid;
+  cursor: pointer;
+  width: fit-content;
+  block-size: fit-content;
+  margin: auto;
+}
