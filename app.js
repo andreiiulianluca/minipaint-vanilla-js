@@ -9,9 +9,9 @@ board.initializeRendering(boardContainer);
 renderButtons(buttonContainer, board, undoRedoManager);
 
 boardContainer.addEventListener("mousedown", () => {
-    board.startDrawing();
+  board.startDrawing();
 });
 
 boardContainer.addEventListener("mouseup", () => {
-    board.stopDrawing();
+  board.stopDrawing();
 });

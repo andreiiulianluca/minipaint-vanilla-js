@@ -7,7 +7,7 @@ function Board(height, width) {
   this.pixels = [];
   this.renderQueue = new Set();
   this.isDrawing = false;
-  this.undoRedoManager = new UndoRedoManager("boardState");
+  this.undoRedoManager = new UndoRedoManager();
 }
 
 Object.assign(Board.prototype, {
@@ -29,7 +29,7 @@ Object.assign(Board.prototype, {
       this.pixels.push(row);
     }
 
-    this.container.addEventListener("mouseover", (event) => {
+    this.container.addEventListener("mousemove", (event) => {
       if (this.isDrawing && event.target.classList.contains("pixel")) {
         const [x, y] = event.target.dataset.position.split(",").map(Number);
         const positionKey = `${x},${y}`;
@@ -70,7 +70,9 @@ Object.assign(Board.prototype, {
     if (!savedState) return null;
 
     const savedPixels = JSON.parse(savedState);
-    const state = Array.from({ length: this.height }, () => Array(this.width).fill(WHITE));
+    const state = Array.from({ length: this.height }, () =>
+      Array(this.width).fill(WHITE)
+    );
 
     Object.keys(savedPixels).forEach((key) => {
       const [i, j] = key.split(",").map(Number);
@@ -81,33 +83,29 @@ Object.assign(Board.prototype, {
   },
 
   saveState: function () {
-    const blackPixels = {};
-    this.pixels.forEach((row, i) => {
-      row.forEach((pixel, j) => {
-        if (pixel.color === BLACK) {
-          blackPixels[`${i},${j}`] = BLACK;
-        }
-      });
-    });
-    localStorage.setItem("boardState", JSON.stringify(blackPixels));
-    return blackPixels;
+    const currentState = this.getCurrentState();
+    localStorage.setItem("boardState", JSON.stringify(currentState));
   },
 
   startDrawing: function () {
     this.isDrawing = true;
-    const currentState = this.saveState();
-    this.undoRedoManager.pushState(currentState);
+    this.initialState = this.getCurrentState();
     this.startRendering();
   },
 
   stopDrawing: function () {
-    this.saveState();
+    const currentState = this.saveState();
+
+    if (JSON.stringify(currentState) !== JSON.stringify(this.initialState)) {
+      this.undoRedoManager.pushState(this.initialState);
+    }
+
     this.isDrawing = false;
   },
 
   undo: function () {
     if (this.undoRedoManager.getUndoStackSize() > 0) {
-      const currentState = this.saveState();
+      const currentState = this.getCurrentState();
 
       const lastState = this.undoRedoManager.undo(currentState);
 
@@ -118,9 +116,7 @@ Object.assign(Board.prototype, {
 
   redo: function () {
     if (this.undoRedoManager.getRedoStackSize() > 0) {
-      const currentState = this.pixels.map((row) =>
-        row.map((pixel) => pixel.color || WHITE)
-      );
+      const currentState = this.getCurrentState();
 
       const redoState = this.undoRedoManager.redo(currentState);
 
@@ -152,13 +148,24 @@ Object.assign(Board.prototype, {
       const [x, y] = positionKey.split(",").map(Number);
       const pixel = this.pixels[x][y];
 
-      const currentColor = pixel.color;
-      const newColor = currentColor === WHITE ? BLACK : WHITE;
+      const newColor = BLACK;
       pixel.setColor(newColor);
 
       this.renderQueue.delete(positionKey);
 
       requestAnimationFrame(this.render.bind(this));
     }
+  },
+
+  getCurrentState: function () {
+    const currentPixels = {};
+    this.pixels.forEach((row, i) => {
+      row.forEach((pixel, j) => {
+        if (pixel.color === BLACK) {
+          currentPixels[`${i},${j}`] = BLACK;
+        }
+      });
+    });
+    return currentPixels;
   },
 });
