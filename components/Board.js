@@ -8,6 +8,7 @@ function Board(height, width) {
   this.renderQueue = new Set();
   this.isDrawing = false;
   this.undoRedoManager = new UndoRedoManager();
+  this.renderFrameId = null;
 }
 
 Object.assign(Board.prototype, {
@@ -29,17 +30,23 @@ Object.assign(Board.prototype, {
       this.pixels.push(row);
     }
 
-    this.container.addEventListener("mousemove", (event) => {
-      if (this.isDrawing && event.target.classList.contains("pixel")) {
-        const [x, y] = event.target.dataset.position.split(",").map(Number);
-        const positionKey = `${x},${y}`;
+    this.container.addEventListener(
+      "mousemove",
+      this.handleMouseMove.bind(this)
+    );
+  },
 
-        if (!this.renderQueue.has(positionKey)) {
-          this.renderQueue.add(positionKey);
-          this.startRendering();
-        }
-      }
-    });
+  handleMouseMove: function (event) {
+    if (!this.isDrawing || !event.target.classList.contains("pixel")) return;
+
+    const [x, y] = event.target.dataset.position.split(",").map(Number);
+    const positionKey = `${x},${y}`;
+
+    this.renderQueue.add(positionKey);
+
+    if (!this.renderFrameId) {
+      this.startRendering();
+    }
   },
 
   restoreState: function (state) {
@@ -61,8 +68,6 @@ Object.assign(Board.prototype, {
         }
       })
     );
-
-    this.startRendering();
   },
 
   loadState: function () {
@@ -90,39 +95,44 @@ Object.assign(Board.prototype, {
   startDrawing: function () {
     this.isDrawing = true;
     this.initialState = this.getCurrentState();
-    this.startRendering();
+    this.container.style.cursor = "crosshair";
+
+    if (this.renderFrameId) {
+      cancelAnimationFrame(this.renderFrameId);
+      this.renderFrameId = null;
+    }
   },
 
   stopDrawing: function () {
-    const currentState = this.saveState();
+    const currentState = this.getCurrentState();
 
     if (JSON.stringify(currentState) !== JSON.stringify(this.initialState)) {
       this.undoRedoManager.pushState(this.initialState);
+      this.saveState();
     }
 
     this.isDrawing = false;
+    this.container.style.cursor = "default";
+    this.renderQueue.clear();
+
+    if (this.renderFrameId) {
+      cancelAnimationFrame(this.renderFrameId);
+      this.renderFrameId = null;
+    }
   },
 
   undo: function () {
-    if (this.undoRedoManager.getUndoStackSize() > 0) {
-      const currentState = this.getCurrentState();
-
-      const lastState = this.undoRedoManager.undo(currentState);
-
-      this.renderQueue.clear();
-      this.restoreState(lastState);
-    }
+    const currentState = this.getCurrentState();
+    const lastState = this.undoRedoManager.undo(currentState);
+    this.restoreState(lastState);
+    this.renderQueue.clear();
   },
 
   redo: function () {
-    if (this.undoRedoManager.getRedoStackSize() > 0) {
-      const currentState = this.getCurrentState();
-
-      const redoState = this.undoRedoManager.redo(currentState);
-
-      this.renderQueue.clear();
-      this.restoreState(redoState);
-    }
+    const currentState = this.getCurrentState();
+    const redoState = this.undoRedoManager.redo(currentState);
+    this.renderQueue.clear();
+    this.restoreState(redoState);
   },
 
   clear: function () {
@@ -133,27 +143,31 @@ Object.assign(Board.prototype, {
     );
     localStorage.removeItem("boardState");
     this.undoRedoManager.clear();
-    this.startRendering();
   },
 
   startRendering: function () {
-    if (this.renderQueue.size > 0) {
-      requestAnimationFrame(this.render.bind(this));
+    if (this.renderQueue.size > 0 && !this.renderFrameId) {
+      this.renderFrameId = requestAnimationFrame(() => this.render());
     }
   },
 
   render: function () {
+    this.renderFrameId = null;
+
     if (this.renderQueue.size > 0) {
-      const [positionKey] = this.renderQueue;
-      const [x, y] = positionKey.split(",").map(Number);
-      const pixel = this.pixels[x][y];
+      const pixelsToRender = Array.from(this.renderQueue);
+      this.renderQueue.clear();
 
-      const newColor = BLACK;
-      pixel.setColor(newColor);
+      pixelsToRender.forEach((positionKey) => {
+        const [x, y] = positionKey.split(",").map(Number);
+        if (this.pixels[x] && this.pixels[x][y]) {
+          this.pixels[x][y].setColor(BLACK);
+        }
+      });
 
-      this.renderQueue.delete(positionKey);
-
-      requestAnimationFrame(this.render.bind(this));
+      if (this.renderQueue.size > 0) {
+        this.renderFrameId = requestAnimationFrame(this.render.bind(this));
+      }
     }
   },
 

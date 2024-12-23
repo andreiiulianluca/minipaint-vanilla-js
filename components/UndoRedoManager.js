@@ -12,21 +12,17 @@ Object.assign(UndoRedoManager.prototype, {
   },
 
   undo: function (currentState) {
-    if (this.getUndoStackSize() > 0) {
-      this.redoStack.push(currentState);
-      const lastState = this.undoStack.pop();
-      this.notifyChange();
-      return lastState;
-    }
+    this.redoStack.push(currentState);
+    const lastState = this.undoStack.pop();
+    this.notifyChange();
+    return lastState;
   },
 
   redo: function (currentState) {
-    if (this.getRedoStackSize() > 0) {
-      this.undoStack.push(currentState);
-      const redoState = this.redoStack.pop();
-      this.notifyChange();
-      return redoState;
-    }
+    this.undoStack.push(currentState);
+    const redoState = this.redoStack.pop();
+    this.notifyChange();
+    return redoState;
   },
 
   clear: function () {

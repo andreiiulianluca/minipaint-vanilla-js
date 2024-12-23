@@ -21,8 +21,11 @@ h1 {
 #board {
   border: 1px solid #000000;
   display: grid;
-  cursor: pointer;
   width: fit-content;
   block-size: fit-content;
   margin: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  cursor: default;
 }

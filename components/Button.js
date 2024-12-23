@@ -13,7 +13,6 @@ Object.assign(Button.prototype, {
   },
 });
 
-
 function renderButtons(buttonContainer, board, undoRedoManager) {
   const undoButton = new Button("Undo", () => board.undo());
   const redoButton = new Button("Redo", () => board.redo());
@@ -23,14 +22,12 @@ function renderButtons(buttonContainer, board, undoRedoManager) {
   redoButton.attachTo(buttonContainer);
   clearButton.attachTo(buttonContainer);
 
+  undoButton.setDisabled(true);
+  redoButton.setDisabled(true);
+
   undoRedoManager.onChange((event) => {
     const { undoSize, redoSize } = event.detail;
     undoButton.setDisabled(undoSize === 0);
     redoButton.setDisabled(redoSize === 0);
   });
-
-  undoButton.setDisabled(true);
-  redoButton.setDisabled(true);
 }
-
-
