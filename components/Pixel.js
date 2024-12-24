@@ -13,6 +13,7 @@ Pixel.prototype.constructor = Pixel;
 
 Object.assign(Pixel.prototype, {
   setColor: function (color) {
+    this.color = color;
     this.element.style.backgroundColor = color;
   },
 });
