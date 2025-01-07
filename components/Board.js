@@ -22,8 +22,10 @@ Object.assign(Board.prototype, {
       const row = [];
       for (let j = 0; j < this.width; j++) {
         const pixel = new Pixel(container, i, j);
-        if (savedState && savedState[i] && savedState[i][j]) {
-          pixel.setColor(savedState[i][j]);
+        if (savedState && savedState[`${i},${j}`]) {
+          pixel.setColor(savedState[`${i},${j}`]);
+        } else {
+          pixel.setColor(WHITE);
         }
         row.push(pixel);
       }
@@ -52,19 +54,12 @@ Object.assign(Board.prototype, {
   restoreState: function (state) {
     this.renderQueue.clear();
 
-    const restoredState = Array.from({ length: this.height }, () =>
-      Array(this.width).fill(WHITE)
-    );
-
-    Object.keys(state).forEach((key) => {
-      const [i, j] = key.split(",").map(Number);
-      restoredState[i][j] = BLACK;
-    });
-
     this.pixels.forEach((row, i) =>
       row.forEach((pixel, j) => {
-        if (pixel.color !== restoredState[i][j]) {
-          pixel.setColor(restoredState[i][j]);
+        if (state[`${i},${j}`]) {
+          pixel.setColor(BLACK);
+        } else {
+          pixel.setColor(WHITE);
         }
       })
     );
@@ -72,19 +67,8 @@ Object.assign(Board.prototype, {
 
   loadState: function () {
     const savedState = localStorage.getItem("boardState");
-    if (!savedState) return null;
 
-    const savedPixels = JSON.parse(savedState);
-    const state = Array.from({ length: this.height }, () =>
-      Array(this.width).fill(WHITE)
-    );
-
-    Object.keys(savedPixels).forEach((key) => {
-      const [i, j] = key.split(",").map(Number);
-      state[i][j] = BLACK;
-    });
-
-    return state;
+    return savedState ? JSON.parse(savedState) : null;
   },
 
   saveState: function () {
@@ -181,5 +165,9 @@ Object.assign(Board.prototype, {
       });
     });
     return currentPixels;
+  },
+
+  subscribeToUndoRedoManager: function (callback) {
+    this.undoRedoManager.onChange(callback);
   },
 });

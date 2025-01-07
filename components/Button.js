@@ -12,22 +12,3 @@ Object.assign(Button.prototype, {
     this.element.innerText = text;
   },
 });
-
-function renderButtons(buttonContainer, board, undoRedoManager) {
-  const undoButton = new Button("Undo", () => board.undo());
-  const redoButton = new Button("Redo", () => board.redo());
-  const clearButton = new Button("Clear", () => board.clear());
-
-  undoButton.attachTo(buttonContainer);
-  redoButton.attachTo(buttonContainer);
-  clearButton.attachTo(buttonContainer);
-
-  undoButton.setDisabled(true);
-  redoButton.setDisabled(true);
-
-  undoRedoManager.onChange((event) => {
-    const { undoSize, redoSize } = event.detail;
-    undoButton.setDisabled(undoSize === 0);
-    redoButton.setDisabled(redoSize === 0);
-  });
-}
