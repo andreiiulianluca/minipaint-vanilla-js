@@ -6,7 +6,6 @@ function Board(height, width) {
   this.width = width;
   this.pixels = [];
   this.renderQueue = new Set();
-  this.isDrawing = false;
   this.undoRedoManager = new UndoRedoManager();
   this.renderFrameId = null;
 }
@@ -15,6 +14,7 @@ Object.assign(Board.prototype, {
   initializeRendering: function (container) {
     const savedState = this.loadState();
     this.container = container;
+    this.boundHandleMouseMove = this.handleMouseMove.bind(this);
     this.container.style.gridTemplateColumns = `repeat(${this.width}, 10px)`;
     this.container.style.gridTemplateRows = `repeat(${this.height}, 10px)`;
 
@@ -33,22 +33,55 @@ Object.assign(Board.prototype, {
     }
 
     this.container.addEventListener(
-      "mousemove",
-      this.handleMouseMove.bind(this)
+      "mousedown",
+      this.handleMouseDown.bind(this)
     );
+    this.container.addEventListener("mouseup", this.handleMouseUp.bind(this));
+  },
+
+  handleMouseDown: function (event) {
+    if (event.target.classList.contains("pixel")) {
+      this.initialState = this.getCurrentState();
+      this.container.style.cursor = "crosshair";
+
+      if (this.renderFrameId) {
+        cancelAnimationFrame(this.renderFrameId);
+        this.renderFrameId = null;
+      }
+      this.container.addEventListener("mousemove", this.boundHandleMouseMove);
+    }
   },
 
   handleMouseMove: function (event) {
-    if (!this.isDrawing || !event.target.classList.contains("pixel")) return;
+    if (event.target.classList.contains("pixel")) {
+      const [x, y] = event.target.dataset.position.split(",").map(Number);
+      const positionKey = `${x},${y}`;
 
-    const [x, y] = event.target.dataset.position.split(",").map(Number);
-    const positionKey = `${x},${y}`;
+      this.renderQueue.add(positionKey);
 
-    this.renderQueue.add(positionKey);
-
-    if (!this.renderFrameId) {
-      this.startRendering();
+      if (!this.renderFrameId) {
+        this.startRendering();
+      }
     }
+  },
+
+  handleMouseUp: function () {
+    const currentState = this.getCurrentState();
+
+    if (JSON.stringify(currentState) !== JSON.stringify(this.initialState)) {
+      this.undoRedoManager.pushState(this.initialState);
+      this.saveState();
+    }
+
+    this.container.style.cursor = "default";
+    this.renderQueue.clear();
+
+    if (this.renderFrameId) {
+      cancelAnimationFrame(this.renderFrameId);
+      this.renderFrameId = null;
+    }
+    this.notifyBoardStateChange();
+    this.container.removeEventListener("mousemove", this.boundHandleMouseMove);
   },
 
   restoreState: function (state) {
@@ -63,6 +96,7 @@ Object.assign(Board.prototype, {
         }
       })
     );
+    this.notifyBoardStateChange();
   },
 
   loadState: function () {
@@ -74,35 +108,6 @@ Object.assign(Board.prototype, {
   saveState: function () {
     const currentState = this.getCurrentState();
     localStorage.setItem("boardState", JSON.stringify(currentState));
-  },
-
-  startDrawing: function () {
-    this.isDrawing = true;
-    this.initialState = this.getCurrentState();
-    this.container.style.cursor = "crosshair";
-
-    if (this.renderFrameId) {
-      cancelAnimationFrame(this.renderFrameId);
-      this.renderFrameId = null;
-    }
-  },
-
-  stopDrawing: function () {
-    const currentState = this.getCurrentState();
-
-    if (JSON.stringify(currentState) !== JSON.stringify(this.initialState)) {
-      this.undoRedoManager.pushState(this.initialState);
-      this.saveState();
-    }
-
-    this.isDrawing = false;
-    this.container.style.cursor = "default";
-    this.renderQueue.clear();
-
-    if (this.renderFrameId) {
-      cancelAnimationFrame(this.renderFrameId);
-      this.renderFrameId = null;
-    }
   },
 
   undo: function () {
@@ -126,6 +131,7 @@ Object.assign(Board.prototype, {
       })
     );
     localStorage.removeItem("boardState");
+    this.notifyBoardStateChange();
     this.undoRedoManager.clear();
   },
 
@@ -167,7 +173,20 @@ Object.assign(Board.prototype, {
     return currentPixels;
   },
 
+  isBoardClear: function () {
+    return this.pixels.every((row) =>
+      row.every((pixel) => pixel.color === WHITE)
+    );
+  },
+
   subscribeToUndoRedoManager: function (callback) {
     this.undoRedoManager.onChange(callback);
+  },
+
+  notifyBoardStateChange: function () {
+    const event = new CustomEvent("boardStateChange", {
+      detail: { isClear: this.isBoardClear() },
+    });
+    this.container.dispatchEvent(event);
   },
 });
